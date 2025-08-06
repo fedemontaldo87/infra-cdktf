@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  localstack:
+    container_name: localstack_main
+    image: localstack/localstack:3.0.2
+    ports:
+      - "127.0.0.1:4566:4566"
+      - "127.0.0.1:4510-4559:4510-4559"
+    environment:
+      - DEBUG=1
+      - SERVICES=lambda,dynamodb,cloudformation,s3,sts,iam,apigateway,sns,sqs,ses
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - REGION=us-east-1
+    volumes:
+      - ./localstack/00-init.sh:/etc/localstack/init/ready.d/00-init.sh
+      - ./localstack/lambda-policy.json:/etc/localstack/init/ready.d/lambda-policy.json
+      - ./localstack/lambda-trust.json:/etc/localstack/init/ready.d/lambda-trust.json
+      - /var/run/docker.sock:/var/run/docker.sock

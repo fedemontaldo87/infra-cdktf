@@ -1,0 +1,11 @@
+{
+  "language": "typescript",
+  "app": "npx ts-node main.ts",
+  "projectId": "1b8a9fb5-689d-4aa3-85cf-3dfcd3dbc6fe",
+  "sendCrashReports": "true",
+  "terraformProviders": [
+    "hashicorp/aws@~> 5.0"
+  ],
+  "terraformModules": [],
+  "context": {}
+}

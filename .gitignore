@@ -1,0 +1,42 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# CDKTF
+cdktf.out/
+cdktf.log
+.terraform/
+*.terraform.tfstate*
+*.terraform.lock.hcl
+
+# CDKTF generated code
+.gen/
+tsconfig.tsbuildinfo
+
+# Lambda packages
+*.zip
+
+# IDE/Editor configs
+.vscode/
+.idea/
+
+# Env files
+.env
+.env.local
+
+# MacOS/Linux/Windows
+.DS_Store
+Thumbs.db
+
+# Python virtualenv
+.venv/
+__pycache__/
+*.py[cod]
+
+# Exclude config files only if you commit them manually
+!.gitignore
+!README.md
+
