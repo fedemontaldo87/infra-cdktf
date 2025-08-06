@@ -10,36 +10,30 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      # ✅ Clonar el repo
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ✅ Node.js con cache de npm
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
 
-      # ✅ Instalar dependencias y CDKTF CLI
       - name: Install dependencies
         run: |
           npm ci
           npm install -g cdktf-cli@0.21.0
 
-      # ✅ Instalar docker-compose v2 manualmente
       - name: Install Docker Compose
         run: |
           sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
           docker-compose version
 
-      # ✅ Levantar LocalStack con tu docker-compose.yml
       - name: Start LocalStack
         run: |
           docker-compose up -d
           echo "Waiting for LocalStack to be ready..."
-          # Esperar a que LocalStack esté listo
           for i in {1..30}; do
             if docker exec localstack_main awslocal iam list-roles >/dev/null 2>&1; then
               break
@@ -53,41 +47,42 @@ jobs:
           fi
           echo "✅ LocalStack ready"
 
-      # ✅ Exportar credenciales dummy para LocalStack
-      - name: Set AWS ENV for LocalStack
+      # Configuración completa de variables (¡ACTUALIZADA!)
+      - name: Set LocalStack environment
         run: |
+          echo "ACCOUNT=000000000000" >> $GITHUB_ENV
+          echo "AWS_REGION=us-east-1" >> $GITHUB_ENV
           echo "AWS_ACCESS_KEY_ID=test" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=test" >> $GITHUB_ENV
-          echo "AWS_REGION=us-east-1" >> $GITHUB_ENV
-          echo "AWS_ENDPOINT_URL=http://localhost:4566" >> $GITHUB_ENV
-
+          echo "AWS_ENDPOINT=http://localhost:4566" >> $GITHUB_ENV
+          echo "DYNAMODB_ENDPOINT=http://localhost:4566" >> $GITHUB_ENV
+          echo "SNS_ENDPOINT=http://localhost:4566" >> $GITHUB_ENV
+          echo "S3_ENDPOINT=http://localhost:4566" >> $GITHUB_ENV
+          echo "SES_ENDPOINT=http://localhost:4566" >> $GITHUB_ENV
+          echo "EMAIL_FROM=no-reply@demo.com" >> $GITHUB_ENV
 
       - name: Install Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.7.5
+          terraform_wrapper: false  # Clave para evitar el error anterior
 
-      - name: Fix Terraform path for CDKTF
+      - name: Add Terraform to PATH
         run: |
-          echo "TERRAFORM_CLI_PATH=$(which terraform)" >> $GITHUB_ENV
-
+          echo "$(dirname $(which terraform))" >> $GITHUB_PATH
 
       - name: Generate providers
         run: cdktf get
 
-      # ✅ Compilar proyecto
       - name: Build CDKTF project
         run: npm run build
 
-      # ✅ Generar archivos Terraform
       - name: Synthesize CDKTF
         run: npm run synth
 
-      # ✅ Deploy
       - name: Deploy to LocalStack
         run: cdktf deploy --auto-approve
 
-      # ✅ Verificar que se crearon los recursos
       - name: Verify deployed resources
         run: |
           docker exec localstack_main awslocal lambda list-functions
@@ -96,7 +91,6 @@ jobs:
           docker exec localstack_main awslocal sns list-topics
           docker exec localstack_main awslocal sqs list-queues
 
-      # ✅ Limpiar el entorno (solo si querés dejar limpio)
       - name: Destroy stack
         if: always()
         run: cdktf destroy --auto-approve
