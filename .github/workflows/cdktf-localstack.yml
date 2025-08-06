@@ -1,15 +1,15 @@
-name: Deploy to LocalStack with Docker Compose
+name: Deploy to LocalStack with CDKTF and Docker Compose
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  localstack-deploy:
+  deploy-localstack:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Setup Node.js
@@ -28,19 +28,19 @@ jobs:
           sudo chmod +x /usr/local/bin/docker-compose
           docker-compose version
 
-      - name: Start LocalStack using Docker Compose
+      - name: Start LocalStack with Docker Compose
         run: docker-compose up -d
-        timeout-minutes: 3
 
       - name: Wait for LocalStack to be ready
         run: |
-          until curl -s http://localhost:4566/_localstack/health | grep "\"lambda\": \"running\""; do
-            echo "⏳ Esperando que LocalStack esté listo..."
+          echo "⌛ Esperando que LocalStack esté listo..."
+          for i in {1..30}; do
+            curl -s http://localhost:4566/_localstack/health | grep "\"lambda\": \"running\"" && break
             sleep 5
           done
           echo "✅ LocalStack está listo."
 
-      - name: Set .env for CDKTF
+      - name: Set environment for CDKTF
         run: |
           echo "ACCOUNT=000000000000" >> .env
           echo "REGION=us-east-1" >> .env
@@ -50,19 +50,26 @@ jobs:
           echo "SES_ENDPOINT=http://localhost:4566" >> .env
           echo "EMAIL_FROM=no-reply@demo.com" >> .env
 
-      - name: Compile CDKTF
+      - name: Build project
         run: npm run build
 
-      - name: Synthesize Terraform
+      - name: CDKTF Synth
         run: npm run synth
 
-      - name: Deploy to LocalStack
-        run: cdktf deploy --auto-approve --no-color --verbose
+      - name: CDKTF Deploy
+        run: cdktf deploy --auto-approve
 
-      - name: List Lambda functions
+      - name: List resources (Lambda, SQS, SNS)
         run: |
+          docker ps
           docker exec localstack_main awslocal lambda list-functions
+          docker exec localstack_main awslocal sqs list-queues
+          docker exec localstack_main awslocal sns list-topics
+          docker exec localstack_main awslocal s3 ls
+          docker exec localstack_main awslocal dynamodb list-tables
+
+      - name: CDKTF Destroy
+        run: cdktf destroy --auto-approve
 
       - name: Stop LocalStack
-        if: always()
         run: docker-compose down

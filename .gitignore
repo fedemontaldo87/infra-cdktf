@@ -16,9 +16,6 @@ cdktf.log
 .gen/
 tsconfig.tsbuildinfo
 
-# Lambda packages
-*.zip
-
 # IDE/Editor configs
 .vscode/
 .idea/
@@ -36,7 +33,10 @@ Thumbs.db
 __pycache__/
 *.py[cod]
 
+# Lambda packages
+*.zip
+!compiled-zips/*.zip
+
 # Exclude config files only if you commit them manually
 !.gitignore
 !README.md
-
