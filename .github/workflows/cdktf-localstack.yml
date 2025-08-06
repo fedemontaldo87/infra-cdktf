@@ -22,6 +22,12 @@ jobs:
           npm ci
           npm install -g cdktf-cli
 
+      - name: Install Docker Compose
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose version
+
       - name: Start LocalStack using Docker Compose
         run: docker-compose up -d
         timeout-minutes: 3
@@ -48,11 +54,15 @@ jobs:
         run: npm run build
 
       - name: Synthesize Terraform
-        run: cdktf synth
+        run: npm run synth
 
       - name: Deploy to LocalStack
-        run: cdktf deploy --auto-approve
+        run: cdktf deploy --auto-approve --no-color --verbose
 
       - name: List Lambda functions
         run: |
           docker exec localstack_main awslocal lambda list-functions
+
+      - name: Stop LocalStack
+        if: always()
+        run: docker-compose down
