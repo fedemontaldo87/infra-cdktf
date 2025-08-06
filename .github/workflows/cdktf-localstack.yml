@@ -67,6 +67,11 @@ jobs:
         with:
           terraform_version: 1.7.5
 
+      - name: Fix Terraform path for CDKTF
+        run: |
+          echo "TERRAFORM_CLI_PATH=$(which terraform)" >> $GITHUB_ENV
+
+
       - name: Generate providers
         run: cdktf get
 
