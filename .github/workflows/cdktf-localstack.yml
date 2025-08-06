@@ -78,7 +78,7 @@ jobs:
         run: cdktf synth
 
       - name: Synthesize CDKTF
-        run: npm run diff
+        run: cdktf diff
 
       - name: Deploy to LocalStack
         run: cdktf deploy --auto-approve
