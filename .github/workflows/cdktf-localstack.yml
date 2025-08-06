@@ -38,10 +38,19 @@ jobs:
       - name: Start LocalStack
         run: |
           docker-compose up -d
-          echo "⌛ Waiting for LocalStack to start..."
-          until curl -s http://localhost:4566/_localstack/health | grep -q '"lambda": "running"'; do
-            sleep 5
+          echo "Waiting for LocalStack to be ready..."
+          # Esperar a que LocalStack esté listo
+          for i in {1..30}; do
+            if docker exec localstack_main awslocal iam list-roles >/dev/null 2>&1; then
+              break
+            fi
+            echo "Waiting for LocalStack to be ready..."
+            sleep 2
           done
+          if [ $? -ne 0 ]; then
+            echo "LocalStack did not start in time"
+            exit 1
+          fi
           echo "✅ LocalStack ready"
 
       # ✅ Exportar credenciales dummy para LocalStack
