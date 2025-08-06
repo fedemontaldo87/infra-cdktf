@@ -1,75 +1,72 @@
-name: Deploy to LocalStack with CDKTF and Docker Compose
+name: Deploy to LocalStack with CDKTF
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   deploy-localstack:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
+          cache: 'npm'
 
       - name: Install dependencies
         run: |
           npm ci
-          npm install -g cdktf-cli
+          npm install -g cdktf-cli@0.20.0
 
-      - name: Install Docker Compose
+      - name: Start LocalStack
         run: |
-          sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-          sudo chmod +x /usr/local/bin/docker-compose
-          docker-compose version
-
-      - name: Start LocalStack with Docker Compose
-        run: docker-compose up -d
-
-      - name: Wait for LocalStack to be ready
-        run: |
-          echo "⌛ Esperando que LocalStack esté listo..."
-          for i in {1..30}; do
-            curl -s http://localhost:4566/_localstack/health | grep "\"lambda\": \"running\"" && break
+          docker-compose up -d
+          echo "Waiting for LocalStack to start..."
+          while ! curl -s http://localhost:4566/_localstack/health | grep -q '"lambda": "running"'; do
             sleep 5
           done
-          echo "✅ LocalStack está listo."
+          echo "✅ LocalStack ready"
 
-      - name: Set environment for CDKTF
+      - name: Set AWS ENV for LocalStack
         run: |
-          echo "ACCOUNT=000000000000" >> .env
-          echo "REGION=us-east-1" >> .env
-          echo "DYNAMODB_ENDPOINT=http://localhost:4566" >> .env
-          echo "SNS_ENDPOINT=http://localhost:4566" >> .env
-          echo "S3_ENDPOINT=http://localhost:4566" >> .env
-          echo "SES_ENDPOINT=http://localhost:4566" >> .env
-          echo "EMAIL_FROM=no-reply@demo.com" >> .env
+          echo "AWS_ACCESS_KEY_ID=test" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=test" >> $GITHUB_ENV
+          echo "AWS_REGION=us-east-1" >> $GITHUB_ENV
+          echo "AWS_ENDPOINT_URL=http://localhost:4566" >> $GITHUB_ENV
 
-      - name: Build project
+      # Si necesitas compilar zips de Lambda
+      # - name: Prepare Lambda zips
+      #   run: npm run package-lambdas
+
+      - name: Build CDKTF project
         run: npm run build
 
-      - name: CDKTF Synth
+      - name: Synthesize CDKTF
         run: npm run synth
 
-      - name: CDKTF Deploy
+      - name: Deploy to LocalStack
         run: cdktf deploy --auto-approve
 
-      - name: List resources (Lambda, SQS, SNS)
+      - name: Verify deployed resources
         run: |
-          docker ps
           docker exec localstack_main awslocal lambda list-functions
-          docker exec localstack_main awslocal sqs list-queues
-          docker exec localstack_main awslocal sns list-topics
           docker exec localstack_main awslocal s3 ls
           docker exec localstack_main awslocal dynamodb list-tables
+          docker exec localstack_main awslocal sns list-topics
+          docker exec localstack_main awslocal sqs list-queues
 
-      - name: CDKTF Destroy
+      - name: Destroy stack
+        if: always()
         run: cdktf destroy --auto-approve
 
-      - name: Stop LocalStack
-        run: docker-compose down
+      - name: Clean up environment
+        if: always()
+        run: |
+          docker-compose down -v
+          rm -rf .cdktf cdktf.out
