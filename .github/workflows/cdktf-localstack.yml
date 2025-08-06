@@ -51,7 +51,7 @@ jobs:
       - name: Set LocalStack environment
         run: |
           echo "ACCOUNT=000000000000" >> $GITHUB_ENV
-          echo "AWS_REGION=us-east-1" >> $GITHUB_ENV
+          echo "REGION=us-east-1" >> $GITHUB_ENV
           echo "AWS_ACCESS_KEY_ID=test" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=test" >> $GITHUB_ENV
           echo "AWS_ENDPOINT=http://localhost:4566" >> $GITHUB_ENV
