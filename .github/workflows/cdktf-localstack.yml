@@ -61,9 +61,8 @@ jobs:
           echo "AWS_REGION=us-east-1" >> $GITHUB_ENV
           echo "AWS_ENDPOINT_URL=http://localhost:4566" >> $GITHUB_ENV
 
-      # ✅ (Opcional) Compilar tus zips si usás lambdas en tiempo real
-      # - name: Prepare Lambda zips
-      #   run: npm run package-lambdas
+      - name: Generate providers
+        run: cdktf get
 
       # ✅ Compilar proyecto
       - name: Build CDKTF project
