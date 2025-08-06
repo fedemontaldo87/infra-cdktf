@@ -1,0 +1,75 @@
+name: Deploy to LocalStack using CDKTF
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    services:
+      localstack:
+        image: localstack/localstack:3.0.2
+        ports:
+          - 4566:4566
+          - 4510-4559:4510-4559
+        env:
+          SERVICES: "lambda,dynamodb,s3,sts,iam,apigateway,sns,sqs,ses"
+          REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          DEBUG: 1
+        options: >-
+          --health-cmd "curl -s http://localhost:4566/_localstack/health | grep '\"lambda\": \"running\"'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 15
+          --volume "${{ github.workspace }}/localstack/00-init.sh:/etc/localstack/init/ready.d/00-init.sh"
+          --volume "${{ github.workspace }}/localstack/lambda-policy.json:/etc/localstack/init/ready.d/lambda-policy.json"
+          --volume "${{ github.workspace }}/localstack/lambda-trust.json:/etc/localstack/init/ready.d/lambda-trust.json"
+          --volume "/var/run/docker.sock:/var/run/docker.sock"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install -g cdktf-cli
+
+      - name: Set Local ENV
+        run: |
+          echo "ACCOUNT=000000000000" >> .env
+          echo "REGION=us-east-1" >> .env
+          echo "DYNAMODB_ENDPOINT=http://localhost:4566" >> .env
+          echo "SNS_ENDPOINT=http://localhost:4566" >> .env
+          echo "S3_ENDPOINT=http://localhost:4566" >> .env
+          echo "SES_ENDPOINT=http://localhost:4566" >> .env
+          echo "EMAIL_FROM=no-reply@demo.com" >> .env
+
+      - name: Build CDKTF
+        run: npm run build
+
+      - name: Synthesize Terraform config
+        run: cdktf synth
+
+      - name: Deploy to LocalStack
+        run: cdktf deploy --auto-approve
+
+      - name: List Lambda functions
+        run: |
+          docker exec $(docker ps -q -f ancestor=localstack/localstack) awslocal lambda list-functions
