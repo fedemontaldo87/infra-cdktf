@@ -61,6 +61,12 @@ jobs:
           echo "AWS_REGION=us-east-1" >> $GITHUB_ENV
           echo "AWS_ENDPOINT_URL=http://localhost:4566" >> $GITHUB_ENV
 
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.7.5
+
       - name: Generate providers
         run: cdktf get
 
